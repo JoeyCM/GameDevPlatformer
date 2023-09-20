@@ -1,8 +1,8 @@
-# {Project Name}
+# Road to the 6th
 
 ## Description
 
-{project description}
+A game in which you play as a FC Barcelona player looking to complete the heroic quest of conquering Europe again by winning the Champions League.
 
 ## Key Features
 
@@ -17,13 +17,11 @@
 
 ## Developers
 
- - {Dev01} - {Role(s)}
- - {Dev02} - {Role(s)}
- - {Dev03} - {Role(s)}
- - {Dev04} - {Role(s)}
+ - Joel Chaves Moreno - Code & Art
+
 
 ## License
 
 This project is licensed under an unmodified MIT license, which is an OSI-certified license that allows static linking with closed source software. Check [LICENSE](LICENSE) for further details.
 
-{AdditionalLicenses}
+
