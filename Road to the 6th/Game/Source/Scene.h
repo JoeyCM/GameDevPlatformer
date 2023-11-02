@@ -2,6 +2,9 @@
 #define __SCENE_H__
 
 #include "Module.h"
+#include "Player.h"
+#include "Item.h"
+#include "Coin.h"
 
 struct SDL_Texture;
 
@@ -15,7 +18,7 @@ public:
 	virtual ~Scene();
 
 	// Called before render is available
-	bool Awake();
+	bool Awake(pugi::xml_node& config);
 
 	// Called before the first frame
 	bool Start();
@@ -32,8 +35,28 @@ public:
 	// Called before quitting
 	bool CleanUp();
 
+	void ResetScene();
+
+public:
+
+	//L02: DONE 3: Declare a Player attribute 
+	Player* player;
+
+	Item* item;
+
+	Coin* coin;
+
+	// Set of SFX
+	uint selectSFX = 0;
+
+	bool cameraFix = false;
+	bool cameraFix2 = false;
+
+	bool playing = false;
+
 private:
 	SDL_Texture* img;
+	iPoint startPosition;
 };
 
 #endif // __SCENE_H__

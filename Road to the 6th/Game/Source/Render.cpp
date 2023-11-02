@@ -1,6 +1,8 @@
 #include "App.h"
 #include "Window.h"
 #include "Render.h"
+#include "TitleScreen.h"
+#include "LogoScreen.h"
 
 #include "Defs.h"
 #include "Log.h"
@@ -11,7 +13,7 @@ Render::Render() : Module()
 {
 	name.Create("renderer");
 	background.r = 0;
-	background.g = 0;
+	background.g = 255;
 	background.b = 0;
 	background.a = 0;
 }
@@ -21,15 +23,18 @@ Render::~Render()
 {}
 
 // Called before render is available
-bool Render::Awake()
+bool Render::Awake(pugi::xml_node& config)
 {
 	LOG("Create SDL rendering context");
 	bool ret = true;
 
 	Uint32 flags = SDL_RENDERER_ACCELERATED;
 
-	flags |= SDL_RENDERER_PRESENTVSYNC;
-	LOG("Using vsync");
+	if (limitFPS = config.child("vsync").attribute("value").as_bool(true) == true)
+	{
+		flags |= SDL_RENDERER_PRESENTVSYNC;
+		LOG("Using vsync");
+	}
 
 	renderer = SDL_CreateRenderer(app->win->window, -1, flags);
 
@@ -101,7 +106,7 @@ void Render::ResetViewPort()
 }
 
 // Blit to screen
-bool Render::DrawTexture(SDL_Texture* texture, int x, int y, const SDL_Rect* section, float speed, double angle, int pivotX, int pivotY) const
+bool Render::DrawTexture(SDL_Texture* texture, int x, int y, const SDL_Rect* section, SDL_RendererFlip flip_, float speed, double angle, int pivotX, int pivotY) const
 {
 	bool ret = true;
 	uint scale = app->win->GetScale();
@@ -133,7 +138,8 @@ bool Render::DrawTexture(SDL_Texture* texture, int x, int y, const SDL_Rect* sec
 		p = &pivot;
 	}
 
-	if(SDL_RenderCopyEx(renderer, texture, section, &rect, angle, p, SDL_FLIP_NONE) != 0)
+
+	if(SDL_RenderCopyEx(renderer, texture, section, &rect, angle, p, flip_) != 0)
 	{
 		LOG("Cannot blit to screen. SDL_RenderCopy error: %s", SDL_GetError());
 		ret = false;
@@ -209,8 +215,17 @@ bool Render::DrawCircle(int x, int y, int radius, Uint8 r, Uint8 g, Uint8 b, Uin
 
 	for(uint i = 0; i < 360; ++i)
 	{
-		points[i].x = (int)(x + radius * cos(i * factor));
-		points[i].y = (int)(y + radius * sin(i * factor));
+		if (app->titlescreen->active == true || app->logoscreen->active == true) {
+			points[i].x = (int)(camera.x + radius * cos(i * factor));
+			points[i].y = (int)(camera.y + radius * sin(i * factor));
+		}
+		else {
+			points[i].x = (int)(camera.x + x + radius * cos(i * factor));
+			points[i].y = (int)(camera.y + y + radius * sin(i * factor));
+		}
+		// TO HIDE THE CIRCLES DRAWED LINKED TO THE BODIES, DELETE THE "x" and "y" from the lines below.
+		/*points[i].x = (int)(camera.x + x + radius * cos(i * factor));
+		points[i].y = (int)(camera.y + y + radius * sin(i * factor));*/
 	}
 
 	result = SDL_RenderDrawPoints(renderer, points, 360);
@@ -222,4 +237,26 @@ bool Render::DrawCircle(int x, int y, int radius, Uint8 r, Uint8 g, Uint8 b, Uin
 	}
 
 	return ret;
+}
+
+// L03: DONE 6: Implement a method to load the state
+// for now load camera's x and y
+bool Render::LoadState(pugi::xml_node& data)
+{
+	camera.x = data.child("camera").attribute("x").as_int();
+	camera.y = data.child("camera").attribute("y").as_int();
+
+	return true;
+}
+
+// L03: DONE 8: Create a method to save the state of the renderer
+// using append_child and append_attribute
+bool Render::SaveState(pugi::xml_node& data)
+{
+	pugi::xml_node cam = data.append_child("camera");
+
+	cam.append_attribute("x") = camera.x;
+	cam.append_attribute("y") = camera.y;
+
+	return true;
 }

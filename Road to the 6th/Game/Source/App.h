@@ -6,13 +6,25 @@
 
 #include "PugiXml/src/pugixml.hpp"
 
+#define CONFIG_FILENAME		"config.xml"
+#define SAVE_STATE_FILENAME "save_game.xml"
+
 // Modules
 class Window;
 class Input;
 class Render;
 class Textures;
 class Audio;
+class ModuleFadeToBlack;
+class LogoScreen;
+class TitleScreen;
 class Scene;
+class EntityManager;
+class Map;
+class EndingScreen;
+//L07 TODO 2: Add Physics module
+class Physics;
+class Animation;
 
 class App
 {
@@ -37,13 +49,19 @@ public:
 	bool CleanUp();
 
 	// Add a new module to handle
-	void AddModule(Module* module);
+	void AddModule(Module* module, bool activate);
 
 	// Exposing some properties for reading
 	int GetArgc() const;
 	const char* GetArgv(int index) const;
 	const char* GetTitle() const;
 	const char* GetOrganization() const;
+
+	// L03: DONE 1: Create methods to control that the real Load and Save happens at the end of the frame
+	void LoadGameRequest();
+	void SaveGameRequest() ;
+	bool LoadFromFile();
+	bool SaveToFile() ;
 
 private:
 
@@ -73,7 +91,15 @@ public:
 	Render* render;
 	Textures* tex;
 	Audio* audio;
+	ModuleFadeToBlack* fade;
+	LogoScreen* logoscreen;
+	TitleScreen* titlescreen;
 	Scene* scene;
+	EntityManager* entityManager;
+	Map* map;
+	EndingScreen* endingscreen;
+	//L07 TODO 2: Add Physics module
+	Physics* physics;
 
 private:
 
@@ -82,10 +108,21 @@ private:
 	SString title;
 	SString organization;
 
-	List<Module *> modules;
+	List<Module*> modules;
+
+	// L01: DONE 2: Create new variables from pugui namespace:
+	// xml_document to store the config file and
+	// xml_node(s) to read specific branches of the xml
+	pugi::xml_document configFile;
+	pugi::xml_node configNode;
 
 	uint frames;
+	uint maxFPS = 60;
 	float dt;
+
+	// L03: DONE 1: Create control variables to control that the real Load and Save happens at the end of the frame
+    bool saveGameRequested;
+	bool loadGameRequested;
 };
 
 extern App* app;

@@ -1,0 +1,39 @@
+<config>
+  <app>
+    <title>Road to the 6th - J21 Studios</title>
+    <organization>UPC</organization>
+  </app>
+
+  <renderer>
+    <vsync value="false"/>
+  </renderer>
+
+  <window>
+    <resolution width="1024" height="640" scale="1"/>
+    <fullscreen value="false"/>
+    <borderless value="false"/>
+    <resizable value="false"/>
+    <fullscreen_window value="false"/>
+  </window>
+
+  <audio>
+    <music volume="75"/>
+    <fx volume="128"/>
+  </audio>
+
+  <!-- L02: DONE: Add an element for the entity manager and add the player parameters -->
+  <scene>
+    <!-->player x="150" y="672" texturepath="Assets/Textures/player1.png"/-->
+    <player x="224" y="530" texturepath="Assets/Textures/BarcelonaPlayer.png"/>
+    <coin x="704" y="329" texturepath="Assets/Textures/SoccerBall.png"/>
+	<coin x="1312" y="297" texturepath="Assets/Textures/SoccerBall.png"/>
+	<coin x="2192" y="458" texturepath="Assets/Textures/SoccerBall.png"/>
+	<coin x="2928" y="170" texturepath="Assets/Textures/SoccerBall.png"/>
+  </scene>
+
+  <map>
+    <mapfolder path="Assets/Maps/"/>
+    <mapfile path="Assets/Maps/Level1Map.tmx"/>
+  </map>
+  
+</config>

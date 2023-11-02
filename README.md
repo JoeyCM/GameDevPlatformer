@@ -6,18 +6,25 @@ A game in which you play as a FC Barcelona player looking to complete the heroic
 
 ## Key Features
 
- - {Feature01}
- - {Feature02}
- - {Feature03}
- - {Feature04}
+ - {F1/F2} - Start from the first/second level
+ - {F3} - Start from the beginning of the current level
+ - {F5} - Save current game state
+ - {F6} - Load the previous game state
+ - {F9} - View colliders/logic
+ - {F10} - God Mode
  
 ## Controls
 
- - {ControlsScheme}
+ - {WASD} - Player's movement
+ - {SPACEBAR} - Player's jump
+ - {SPACEBAR + SPACEBAR} - Player's DOUBLE jump 
+ - {ENTER} - Pass to the next screen  
+ - {ESCAPE} - Exit the game
 
-## Developers
+## Developer
 
- - Joel Chaves Moreno - Code & Art
+ - [Joel Chaves Moreno](https://github.com/JoeyCM) - Code & Art
+ - ![IMG_2825](https://github.com/JoeyCM/GameDevPlatformer/assets/99725590/8415007e-898d-49e5-9915-51df0bb9d942)
 
 
 ## License
