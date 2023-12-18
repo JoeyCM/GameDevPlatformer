@@ -39,19 +39,23 @@ bool TitleScreen::Awake(pugi::xml_node& config)
 // Called before the first frame
 bool TitleScreen::Start()
 {
-	/*app->map->Disable();
-	app->entityManager->Disable();
-	app->scene->Disable();
-	app->physics->Disable();*/
+	app->render->camera.x = 0;
+
+	app->map->Disable();
 
 	LOG("--STARTS TITLE SCENE--");
-	img = app->tex->Load("Assets/Textures/TitleScreen.png");
-	
-	// Music
-	app->audio->PlayMusic("Assets/Audio/Music/BarcelonaAnthem.ogg");
 
-	// Load SFXs
-	startSFX = app->audio->LoadFx("Assets/Audio/Fx/start_game.wav");
+	/*Initialize*/
+	imgPath = app->configNode.child("title").child("backgroundimage").attribute("texturepath").as_string();
+	musicPath = app->configNode.child("title").child("music").attribute("musicPath").as_string();
+	startSFXPath = app->configNode.child("title").child("startsfx").attribute("startSFXPath").as_string();
+
+	/*Load*/
+	img = app->tex->Load(imgPath);
+	app->audio->PlayMusic(musicPath);
+	startSFX = app->audio->LoadFx(startSFXPath);
+
+	app->physics->debug = false;
 
 	return true;
 }

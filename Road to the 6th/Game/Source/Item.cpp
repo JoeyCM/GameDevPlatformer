@@ -8,6 +8,7 @@
 #include "Log.h"
 #include "Point.h"
 #include "Physics.h"
+#include "EntityManager.h"
 
 Item::Item() : Entity(EntityType::ITEM)
 {
@@ -18,17 +19,17 @@ Item::~Item() {}
 
 bool Item::Awake() {
 
+	return true;
+}
+
+bool Item::Start() {
+
 	position.x = parameters.attribute("x").as_int();
 	position.y = parameters.attribute("y").as_int();
 	texturePath = parameters.attribute("texturepath").as_string();
 
 	width = 32;
 	height = 32;
-
-	return true;
-}
-
-bool Item::Start() {
 
 	//initilize textures
 	texture = app->tex->Load(texturePath);
@@ -87,6 +88,7 @@ void Item::OnCollision(PhysBody* physA, PhysBody* physB) {
 		LOG("Collision PLAYER");
 		pbody->body->SetActive(false);
 		this->Disable();
+		
 		break;
 	}
 

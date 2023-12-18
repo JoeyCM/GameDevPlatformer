@@ -35,7 +35,6 @@ int main(int argc, char* args[])
 
 	while(state != EXIT)
 	{
-		int start = SDL_GetTicks();
 		switch(state)
 		{
 			// Allocate the engine --------------------------------------------
@@ -83,9 +82,6 @@ int main(int argc, char* args[])
 			case LOOP:
 			if(app->Update() == false)
 				state = CLEAN;
-			if (app->render->limitFPS == false && ((SDL_GetTicks() - start) < (1000 / 60))) {
-				SDL_Delay((1000 / 60) - (SDL_GetTicks() - start));
-			}
 			break;
 
 			// Cleanup allocated memory -----------------------------------------

@@ -27,6 +27,8 @@ public:
 
 	void OnCollision(PhysBody* physA, PhysBody* physB);
 
+	void ResetCoin();
+
 public:
 
 	bool isPicked = false;
@@ -39,7 +41,6 @@ private:
 	SDL_Texture* texture;
 	const char* texturePath;
 
-	
 	b2Vec2 velocity;
 
 	int timeMov = 0;

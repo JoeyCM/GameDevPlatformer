@@ -72,7 +72,7 @@ public:
 	virtual void OnCollision(PhysBody* bodyA, PhysBody* bodyB) {
 
 	}
-
+	
 	void Enable() {
 		if (!active)
 		{

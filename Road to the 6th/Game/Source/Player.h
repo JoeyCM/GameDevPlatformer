@@ -33,6 +33,8 @@ public:
 
 	void Jump();
 
+	void Attack();
+
 	void ResetPlayerPos();
 
 public:
@@ -41,29 +43,48 @@ public:
 	// It will be switched depending on the player's movement direction
 	Animation* currentAnim;
 
-	//Set of animations
+	//Set of animations (JUMP ANIM DDOESN'T EXISTS)
 	Animation idlePlayer;
 	Animation runPlayer;
-	Animation jumpPlayer;
+	Animation attackPlayer;
 	Animation diePlayer;
+	Animation hitPlayer;
 
 	//Set of SFX
 	uint jumpSFX = 0;
+	const char* jumpSFXPath;
 	uint dieSFX = 0;
+	const char* dieSFXPath;
+	uint hurtSFX = 0;
+	const char* hurtSFXPath;
 	uint pickCoinSFX = 0;
+	const char* pickCoinSFXPath;
 	uint levelCompletedSFX = 0;
+	const char* levelCompletedSFXPath;
 	uint selectSFX = 0;
+	const char* selectSFXPath;
+	uint shortRangeAttackSFX = 0;
+	const char* shortRangeAttackSFXPath;
 
 	bool onGround = false;
 	bool dead = false;
 	bool godMode = false;
+	bool onCollision = false;
 
 	PhysBody* pbody;
 
-private:
+	PhysBody* hitbox;
+	b2Vec2 hitboxPos;
 
-	// L07 TODO 5: Add physics to the player - declare a Physics body
-	
+	int coins = 0;
+
+	int lives = 3;
+
+	//Attack Variables
+	const int cooldownTime = 60;		//Cooldown time --> 60 ticks = 1 seconds (if fps=60)
+	int timeToAttack = 60;				//Starts equal to cooldownTime, so player can attack immediately when the scene starts
+
+private:
 
 	//L02: DONE 1: Declare player parameters
 	SDL_Texture* texture;
@@ -86,7 +107,9 @@ private:
 	bool jumping = false;
 	bool longPress = false;
 
-	int coins = 0;
+	//Attack Variables
+	bool attacking = false;
+	int attackTime = 1;
 };
 
 #endif // __PLAYER_H__

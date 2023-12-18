@@ -5,6 +5,8 @@
 #include "Player.h"
 #include "Item.h"
 #include "Coin.h"
+#include "SlimeEnemy.h"
+#include "BatEnemy.h"
 
 struct SDL_Texture;
 
@@ -37,10 +39,17 @@ public:
 
 	void ResetScene();
 
+	bool LoadState(pugi::xml_node&);
+	bool SaveState(pugi::xml_node&);
+
 public:
 
 	//L02: DONE 3: Declare a Player attribute 
 	Player* player;
+
+	SlimeEnemy* slime;
+
+	BatEnemy* bat;
 
 	Item* item;
 
@@ -54,9 +63,24 @@ public:
 
 	bool playing = false;
 
+	bool capTo60fps = false;
+
+	SDL_Texture* originTex = nullptr;
+	const char* origintexturePath;
+
+	SDL_Texture* slimeTilePathTex = nullptr;
+	const char* slimeTilePath;
+
 private:
 	SDL_Texture* img;
 	iPoint startPosition;
+	
+	// L12: Debug pathfing
+	iPoint origin;
+	bool originSelected = false;
+
+	const char* musicPath;
+	const char* selectSFXPath;
 };
 
 #endif // __SCENE_H__

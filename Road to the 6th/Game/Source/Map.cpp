@@ -10,6 +10,7 @@
 #include "Log.h"
 
 #include <math.h>
+#include <cmath>
 #include "SDL_image/include/SDL_image.h"
 
 Map::Map() : Module(), mapLoaded(false)
@@ -27,9 +28,72 @@ bool Map::Awake(pugi::xml_node& config)
     LOG("Loading Map Parser");
     bool ret = true;
 
-    mapFileName = config.child("mapfile").attribute("path").as_string();
-    mapFolder = config.child("mapfolder").attribute("path").as_string();
+    return ret;
+}
 
+bool Map::Start()
+{
+    LOG("Loading Map Parser");
+    bool ret = true;
+
+    mapFileName = app->configNode.child("map").child("mapfile").attribute("path").as_string();
+    mapFolder = app->configNode.child("map").child("mapfolder").attribute("path").as_string();
+
+    return ret;
+}
+
+// L12: Create walkability map for pathfinding
+bool Map::CreateWalkabilityMap(int& width, int& height, uchar** buffer) const
+{
+    bool ret = false;
+    ListItem<MapLayer*>* item;
+    item = mapData.maplayers.start;
+
+    for (item = mapData.maplayers.start; item != NULL; item = item->next)
+    {
+        MapLayer* layer = item->data;
+
+        if (layer->properties.GetProperty("Navigation") != NULL && !layer->properties.GetProperty("Navigation")->value)
+            continue;
+        
+        LOG("Layer id: %d", layer->id);
+
+        uchar* map = new uchar[layer->width * layer->height];
+        memset(map, 1, layer->width * layer->height);
+
+        for (int y = 0; y < mapData.height; ++y)
+        {
+            for (int x = 0; x < mapData.width; ++x)
+            {
+                int i = (y * layer->width) + x;
+
+                int tileId = layer->Get(x, y);
+                TileSet* tileset = (tileId > 0) ? GetTilesetFromTileId(tileId) : NULL;
+
+                LOG("Tilset gid: %d", tileset->firstgid);
+
+                if (tileset != NULL)
+                {
+                    //According to the mapType use the ID of the tile to set the walkability value
+                    if (mapData.type == MapTypes::MAPTYPE_ORTHOGONAL && tileId == 696) map[i] = 1;
+                    else map[i] = 0;
+
+                   //map[i] = (tileId - tileset->firstgid) > 0 ? 0 : 1;
+                }
+                else {
+                    LOG("CreateWalkabilityMap: Invalid tileset found");
+                    map[i] = 0;
+                }
+            }
+        }
+
+        *buffer = map;
+        width = mapData.width;
+        height = mapData.height;
+        ret = true;
+
+        break;
+    }
     return ret;
 }
 
@@ -97,6 +161,32 @@ iPoint Map::MapToWorld(int x, int y) const
     return ret;
 }
 
+// L08: DONE 3: Add method WorldToMap to obtain  map coordinates from screen coordinates
+iPoint Map::WorldToMap(int x, int y)
+{
+    iPoint ret(0, 0);
+
+    if (mapData.type == MAPTYPE_ORTHOGONAL)
+    {
+        ret.x = x / mapData.tileWidth;
+        ret.y = y / mapData.tileHeight;
+    }
+    else if (mapData.type == MAPTYPE_ISOMETRIC)
+    {
+        float halfWidth = mapData.tileWidth * 0.5f;
+        float halfHeight = mapData.tileHeight * 0.5f;
+        ret.x = int((x / halfWidth + y / halfHeight) / 2);
+        ret.y = int((y / halfHeight - x / halfWidth) / 2);
+    }
+    else
+    {
+        LOG("Unknown map type");
+        ret.x = x; ret.y = y;
+    }
+
+    return ret;
+}
+
 // Get relative Tile rectangle
 SDL_Rect TileSet::GetTileRect(int gid) const
 {
@@ -158,6 +248,41 @@ bool Map::CleanUp()
         RELEASE(layerItem->data);
         layerItem = layerItem->next;
     }
+    mapData.maplayers.Clear();
+
+    /*This goes to Physics.cpp*/
+   /* ListItem<PhysBody*>* collisionsItem;
+    collisionsItem = mapColliders.start;
+
+    while (collisionsItem != NULL)
+    {
+        collisionsItem->data->body->DestroyFixture(collisionsItem->data->body->GetFixtureList());
+        RELEASE(collisionsItem->data);
+        collisionsItem = collisionsItem->next;
+    }
+    mapColliders.Clear();*/
+
+    //Chain Collider Points clean up
+    ListItem<ObjectGroup*>* ObjectGroupItem;
+    ObjectGroupItem = mapData.mapObjectGroups.start;
+
+    while (ObjectGroupItem != NULL)
+    {
+        ListItem<Object*>* ObjectItem;
+        ObjectItem = ObjectGroupItem->data->objects.start;
+
+        while (ObjectItem != NULL)
+        {
+            RELEASE(ObjectGroupItem->data);
+            ObjectItem = ObjectItem->next;
+        }
+        //ObjectGroupItem->data->objects.Clear();
+
+        RELEASE(ObjectGroupItem->data);
+        ObjectGroupItem = ObjectGroupItem->next;
+    }
+    mapData.mapObjectGroups.Clear();
+
 
     return true;
 }
@@ -192,67 +317,35 @@ bool Map::Load()
         ret = LoadAllLayers(mapFileXML.child("map"));
     }
     
+    if (ret == true)
+    {
+        ret = LoadAllObjectGroups(mapFileXML.child("map"));
+    }
+
+    
     // L07 TODO 3: Create colliders
-    // Later you can create a function here to load and create the colliders from the map
-    // GROUND colliders
-    PhysBody* c1 = app->physics->CreateRectangle(0+16, (32*3)+240, 32, 32*15, STATIC, ColliderType::PLATFORM);
-    PhysBody* c2 = app->physics->CreateRectangle(32+16, (32*7)+176, 32, 32*11, STATIC, ColliderType::PLATFORM);
-    PhysBody* c3 = app->physics->CreateRectangle((32*2)+16, (32*8)+160, 32, 32*10, STATIC, ColliderType::PLATFORM);
-    PhysBody* c4 = app->physics->CreateRectangle((32*3)+224, (32*17)+16, 32*14, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c5 = app->physics->CreateRectangle((32*17)+48, (32*15)+48, 32*3, 32*3, STATIC, ColliderType::PLATFORM);
-    PhysBody* c6 = app->physics->CreateRectangle((32*15)+32, (32*12)+16, 32*2, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c7 = app->physics->CreateRectangle((32*20)+80, (32*11)+32, 32*5, 32*2, STATIC, ColliderType::PLATFORM);
-    PhysBody* c8 = app->physics->CreateRectangle((32*28)+64, (32*14)+16, 32*4, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c9 = app->physics->CreateRectangle((32*34)+32, (32*12)+16, 32*2, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c10 = app->physics->CreateRectangle((32*38)+192, (32*10)+128, 32*12, 32*8, STATIC, ColliderType::PLATFORM);
-    PhysBody* c11 = app->physics->CreateRectangle((32*50)+64, (32*14)+64, 32*4, 32*4, STATIC, ColliderType::PLATFORM);
-     
-     int points1[6] = { 32 * 50, 32 * 10,
-                        32 * 50, 32 * 14,
-                        32 * 54, 32 * 14 };
-    PhysBody* c12 = app->physics->CreateChain(0, 0, points1, 6, STATIC, ColliderType::PLATFORM);
-
-    PhysBody* c13 = app->physics->CreateRectangle((32*57)+16 , (32*13)+80 , 32, 32*5, STATIC, ColliderType::PLATFORM);
-    PhysBody* c14 = app->physics->CreateRectangle((32*61)+48 , (32*11)+32 , 32*3, 32*2, STATIC, ColliderType::PLATFORM);
-    PhysBody* c15 = app->physics->CreateRectangle((32*67)+48 , (32*15)+48 , 32*3, 32*3, STATIC, ColliderType::PLATFORM);
-    PhysBody* c16 = app->physics->CreateRectangle((32*68)+48 , (32*9)+16 , 32*3, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c17 = app->physics->CreateRectangle((32*72)+32 , (32*12)+16 , 32*2, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c18 = app->physics->CreateRectangle((32*75)+32 , (32*8)+160 , 32*2, 32*10, STATIC, ColliderType::PLATFORM);
-    PhysBody* c19 = app->physics->CreateRectangle((32*77)+16 , (32*6)+192 , 32, 32*12, STATIC, ColliderType::PLATFORM);
-    PhysBody* c20 = app->physics->CreateRectangle((32*78)+64 , (32*5)+208 , 32*4, 32*13, STATIC, ColliderType::PLATFORM);
-    PhysBody* c21 = app->physics->CreateRectangle((32*82)+32 , (32*13)+80 , 32*2, 32*5, STATIC, ColliderType::PLATFORM);
- 
-     int points2[6] = { 32 * 82, 32 * 11,
-                        32 * 82, 32 * 13,
-                        32 * 84, 32 * 13 };
-    PhysBody* c22 = app->physics->CreateChain(0, 0, points2, 6, STATIC, ColliderType::PLATFORM);
-
-    PhysBody* c23 = app->physics->CreateRectangle((32*85)+32, (32*4)+16, 32*2, 32, STATIC, ColliderType::PLATFORM);
-    PhysBody* c24 = app->physics->CreateRectangle((32*90)+48, (32*6)+32, 32*3, 32*2, STATIC, ColliderType::PLATFORM);
-    PhysBody* c25 = app->physics->CreateRectangle((32*95)+96, (32*11)+112, 32*6, 32*7, STATIC, ColliderType::PLATFORM);
-    PhysBody* c26 = app->physics->CreateRectangle((32*101)+64, (32*15)+48, 32*4, 32*3, STATIC, ColliderType::PLATFORM);
-
-     int points3[6] = {32 * 101, 32 * 11,
-                       32 * 101, 32 * 15,
-                       32 * 105, 32 *  15};
-     PhysBody* c27 = app->physics->CreateChain(0, 0, points3, 6, STATIC, ColliderType::PLATFORM);
-
      // WATER collider
-     PhysBody* c28 = app->physics->CreateRectangle(0+1648, 560+40, 32*103, (32*2)+16, STATIC, ColliderType::WATER);
+    //PhysBody* c28 = app->physics->CreateRectangle(0+1648, 560+40, 32*103, (32*2)+16, STATIC, ColliderType::WATER);
 
      //Camera Fixed To Player Colliders (left side)
-     PhysBody* c29 = app->physics->CreateRectangleSensor((32*16)+27 ,0+288 , 10, 32 * 18, STATIC, ColliderType::CAMERAFIX);
-     PhysBody* c30 = app->physics->CreateRectangleSensor((32*16)-8 ,0+288 , 10, 32 * 18, STATIC, ColliderType::NONCAMERAFIX);
+     /*PhysBody* c29 = app->physics->CreateRectangleSensor((32*16)+27 ,0+288 , 10, 32 * 18, STATIC, ColliderType::CAMERAFIX);
+     mapColliders.Add(c29);*/
 
-     //Camera Fixed To Player Colliders (right side)
-     PhysBody* c31 = app->physics->CreateRectangleSensor((2858)-24, 0+288, 10, 32 * 18, STATIC, ColliderType::NONCAMERAFIX_2);
-     PhysBody* c32 = app->physics->CreateRectangleSensor((2858)+8, 0+288, 10, 32 * 18, STATIC, ColliderType::CAMERAFIX_2);
+     //PhysBody* c30 = app->physics->CreateRectangleSensor((32*16)-8 ,0+288 , 10, 32 * 18, STATIC, ColliderType::NONCAMERAFIX);
+     //mapColliders.Add(c30);
 
-     // WIN collider (if player touches it, player wins)
-     PhysBody* c33 = app->physics->CreateRectangleSensor((32 * 103) + 16, (32 * 8) + 80, 32, 32 * 5, STATIC, ColliderType::WIN_ZONE);
-    
+     ////Camera Fixed To Player Colliders (right side)
+     //PhysBody* c31 = app->physics->CreateRectangleSensor((2858)-24, 0+288, 10, 32 * 18, STATIC, ColliderType::NONCAMERAFIX_2);
+     //mapColliders.Add(c31);
 
-    //CreateColliders();
+     //PhysBody* c32 = app->physics->CreateRectangleSensor((2858)+8, 0+288, 10, 32 * 18, STATIC, ColliderType::CAMERAFIX_2);
+     //mapColliders.Add(c32);
+
+     //// WIN collider (if player touches it, player wins)
+     //PhysBody* c33 = app->physics->CreateRectangleSensor((32 * 105) + 16, (32 * 9) + 96, 32, 32 * 6, STATIC, ColliderType::WIN_ZONE);
+     //mapColliders.Add(c33);
+
+     CreateColliders();
 
     if(ret == true)
     {
@@ -310,6 +403,18 @@ bool Map::LoadMap(pugi::xml_node mapFile)
         mapData.width = map.attribute("width").as_int();
         mapData.tileHeight = map.attribute("tileheight").as_int();
         mapData.tileWidth = map.attribute("tilewidth").as_int();
+        mapData.type = MAPTYPE_UNKNOWN;
+
+        // L08: DONE 2: Read the prientation of the map
+        mapData.type = MAPTYPE_UNKNOWN;
+        if (strcmp(map.attribute("orientation").as_string(), "isometric") == 0)
+        {
+            mapData.type = MAPTYPE_ISOMETRIC;
+        }
+        if (strcmp(map.attribute("orientation").as_string(), "orthogonal") == 0)
+        {
+            mapData.type = MAPTYPE_ORTHOGONAL;
+        }
     }
 
     return ret;
@@ -392,6 +497,143 @@ bool Map::LoadAllLayers(pugi::xml_node mapNode) {
     return ret;
 }
 
+bool Map::LoadObject(pugi::xml_node& node, Object* object)
+{
+    bool ret = true;
+    int arrLenght = 0;
+    //Load the attributes
+    object->id = node.attribute("id").as_int();
+    object->x = node.attribute("x").as_int();
+    object->y = node.attribute("y").as_int();
+
+    //L06: DONE 6 Call Load Propoerties
+    SString polygonString;
+    polygonString = node.child("polygon").attribute("points").as_string();
+
+    //Reserve the memory for the data 
+    for (int a = 0; a < polygonString.Length(); a++, arrLenght++)
+    {
+        if ((polygonString.GetTerm(a) != ' ') && (polygonString.GetTerm(a) != ','))
+        {
+            arrLenght--;
+        }
+    }
+
+    object->chainPoints = new int[arrLenght];
+    memset(object->chainPoints, 0, arrLenght);
+
+
+    //char* temp = strtok(polygonString.GetCharString(), " ");
+    char* temp;
+    int arr[100];
+    int count = 0;
+    int j = 0;
+    bool negative = false;
+    /*SString clearString;
+    while (temp != NULL)
+    {
+        clearString += temp;
+    }*/
+    LOG("number %s", polygonString.GetString());
+    for (uint i = 0; i < polygonString.Length(); i++, j++)
+    {
+        //LOG("number %s", polygonString.GetTerm(i));
+        if ((polygonString.GetTerm(i) != ' ') && (polygonString.GetTerm(i) != ','))
+        {
+            if (polygonString.GetTerm(i) == '-')
+            {
+                negative = true;
+            }
+            else
+            {
+
+                arr[count] = ((int)polygonString.GetTerm(i)) - 48;
+                LOG("%i", arr[count]);
+                if (negative == true)
+                {
+                    arr[count] *= -1;
+                    negative = false;
+                }
+                count++;
+            }
+
+            j--;
+        }
+        else
+        {
+            count--;
+            int aux = 0;
+            for (int a = 0; count >= 0; a++, count--)
+            {
+                if (aux < 0)
+                {
+                    aux -= arr[a] * (pow(10, count));
+                }
+                else
+                {
+                    aux += arr[a] * (pow(10, count));
+                }
+
+            }
+            object->chainPoints[j] = aux;
+            LOG("AUX NUMBER %i", object->chainPoints[j]);
+            count = 0;
+        }
+    }
+    count--;
+    int aux = 0;
+    for (int a = 0; count >= 0; a++, count--)
+    {
+        aux += arr[a] * (pow(10, count));
+    }
+    object->chainPoints[j] = aux;
+    object->size = arrLenght + 1;
+    LOG("AUX NUMBER %i", object->chainPoints[j]);
+    LOG("Chain Size %d", object->size);
+
+    polygonString.Clear();
+
+    return ret;
+}
+
+bool Map::LoadObjectGroup(pugi::xml_node& node, ObjectGroup* objectGroup)
+{
+    bool ret = true;
+    //Load the attributes
+    objectGroup->id = node.attribute("id").as_int();
+    objectGroup->name = node.attribute("name").as_string();
+
+
+    for (pugi::xml_node objectNode = node.child("object"); objectNode && ret; objectNode = objectNode.next_sibling("object"))
+    {
+        //Load the object
+        Object* mapObject = new Object();
+        ret = LoadObject(objectNode, mapObject);
+
+        //add the object to the map
+        objectGroup->objects.Add(mapObject);
+    }
+
+    return ret;
+}
+
+bool Map::LoadAllObjectGroups(pugi::xml_node mapNode)
+{
+    bool ret = true;
+
+    for (pugi::xml_node objectGroupNode = mapNode.child("objectgroup"); objectGroupNode && ret; objectGroupNode = objectGroupNode.next_sibling("objectgroup"))
+    {
+        //Load the objectGroup
+        ObjectGroup* mapObjectGroup = new ObjectGroup();
+        ret = LoadObjectGroup(objectGroupNode, mapObjectGroup);
+
+        //add the objectGroup to the map
+        mapData.mapObjectGroups.Add(mapObjectGroup);
+    }
+
+    return ret;
+}
+
 // L06: DONE 6: Load a group of properties from a node and fill a list with it
 bool Map::LoadProperties(pugi::xml_node& node, Properties& properties)
 {
@@ -408,7 +650,6 @@ bool Map::LoadProperties(pugi::xml_node& node, Properties& properties)
 
     return ret;
 }
-
 
 // L06: DONE 7: Ask for the value of a custom property
 Properties::Property* Properties::GetProperty(const char* name)
@@ -429,17 +670,17 @@ Properties::Property* Properties::GetProperty(const char* name)
 }
 
 
-//bool Map::Parallax(TileSet* tileset_, float x) {
-//
-//    bool ret = true;
-//
-//    /*app->render->DrawTexture(tileset_->texture,
-//        pos.x - app->render->camera.x * x,
-//        pos.y,
-//        &r);*/
-//
-//    return ret;
-//}
+bool Map::Parallax(TileSet* tileset_, iPoint pos, SDL_Rect r, float x) {
+
+    bool ret = true;
+
+    app->render->DrawTexture(tileset_->texture,
+        pos.x - app->render->camera.x * x,
+        pos.y,
+        &r);
+
+    return ret;
+}
 
 
 bool Map::CreateColliders()
@@ -460,17 +701,116 @@ bool Map::CreateColliders()
             {
                 for (int y = 0; y < mapLayerItem->data->height; y++)
                 {
-                    if (mapLayerItem->data->Get(x, y) == 695)
+                    if (mapLayerItem->data->Get(x, y) != 0)
                     {
                         iPoint pos = MapToWorld(x, y);
-                        app->physics->CreateRectangle(pos.x + halfTileHeight, pos.y + halfTileWidth, mapData.tileWidth, mapData.tileHeight, STATIC, ColliderType::PLATFORM);
+                        PhysBody* c1 = app->physics->CreateRectangle(pos.x + halfTileHeight, pos.y + halfTileWidth, mapData.tileWidth, mapData.tileHeight, STATIC, ColliderType::UNKNOWN);
+                        
+                        switch (mapLayerItem->data->Get(x, y)) {
+                        case 695:
+                            c1->cType = ColliderType::PLATFORM;
+                            break;
+                        case 696:
+                            c1->cType = ColliderType::WALL;
+                            break;
+                        case 693:
+                            c1->cType = ColliderType::WATER;
+                            break;
+                       
+                        default: break;
+                        }
+
+                        mapColliders.Add(c1);
                     }
                 }
             }
+            
         }
+
+        if (mapLayerItem->data->name == "WinZone")
+        {
+            int halfTileHeight = mapData.tileHeight / 2;
+            int halfTileWidth = mapData.tileWidth / 2;
+
+            for (int x = 0; x < mapLayerItem->data->width; x++)
+            {
+                for (int y = 0; y < mapLayerItem->data->height; y++)
+                {
+                    if (mapLayerItem->data->Get(x, y) != 0)
+                    {
+                        iPoint pos = MapToWorld(x, y);
+                        PhysBody* c1 = app->physics->CreateRectangleSensor(pos.x + halfTileHeight, pos.y + halfTileWidth, mapData.tileWidth, mapData.tileHeight, STATIC, ColliderType::UNKNOWN);
+
+                        switch (mapLayerItem->data->Get(x, y)) {
+                        case 694:
+                            c1->cType = ColliderType::WIN_ZONE;
+                            break;
+
+                        default: break;
+                        }
+
+                        mapColliders.Add(c1);
+                    }
+                }
+            }
+
+        }
+
 
         mapLayerItem = mapLayerItem->next;
     }
+
+    //CREATE GAMEOBJECT COLLIDERS
+    ListItem<ObjectGroup*>* mapObjectGroupItem;
+    mapObjectGroupItem = mapData.mapObjectGroups.start;
+
+    while (mapObjectGroupItem != NULL)
+    {
+        if (mapObjectGroupItem->data->name == "ChainColliders")
+        {
+            ListItem<Object*>* mapObjectItem;
+            mapObjectItem = mapObjectGroupItem->data->objects.start;
+            while (mapObjectItem != NULL)
+            {
+                PhysBody* c1 = app->physics->CreateChain(mapObjectItem->data->x, mapObjectItem->data->y, mapObjectItem->data->chainPoints, mapObjectItem->data->size, STATIC, ColliderType::PLATFORM);;
+                mapColliders.Add(c1);
+
+                mapObjectItem = mapObjectItem->next;
+            }
+        }
+        if (mapObjectGroupItem->data->name == "CameraFixColliders")
+        {
+            ListItem<Object*>* mapObjectItem;
+            mapObjectItem = mapObjectGroupItem->data->objects.start;
+            while (mapObjectItem != NULL)
+            {
+                
+                PhysBody* c1 = app->physics->CreateSensorChain(mapObjectItem->data->x, mapObjectItem->data->y, mapObjectItem->data->chainPoints, mapObjectItem->data->size, STATIC, ColliderType::UNKNOWN);;
+
+                switch (mapObjectItem->data->id) {
+                case 40:
+                    c1->cType = ColliderType::NONCAMERAFIX;
+                    break;
+                case 41:
+                    c1->cType = ColliderType::CAMERAFIX;
+                    break;
+                case 42:
+                    c1->cType = ColliderType::CAMERAFIX_2;
+                    break;
+                case 43:
+                    c1->cType = ColliderType::NONCAMERAFIX_2;
+                    break;
+
+                default: break;
+                }
+                mapColliders.Add(c1);
+                mapObjectItem = mapObjectItem->next;
+            }
+        }
+       
+        mapObjectGroupItem = mapObjectGroupItem->next;
+    }
+
     return ret;
 }
 

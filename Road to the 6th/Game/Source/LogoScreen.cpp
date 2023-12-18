@@ -38,8 +38,14 @@ bool LogoScreen::Awake(pugi::xml_node& config)
 bool LogoScreen::Start()
 {
 	LOG("--STARTS LOGO SCENE--");
-	img = app->tex->Load("Assets/Textures/LogoScreen.png");
-	app->audio->PlayMusic("Assets/Audio/Music/LogoScreen.ogg");
+
+	/*Initialize*/
+	imgPath = app->configNode.child("logo").child("backgroundimage").attribute("texturepath").as_string();
+	musicPath = app->configNode.child("logo").child("music").attribute("musicPath").as_string();
+
+	/*Load*/
+	img = app->tex->Load(imgPath);
+	app->audio->PlayMusic(musicPath);
 
 	return true;
 }
@@ -55,6 +61,11 @@ bool LogoScreen::Update(float dt)
 {
 	time++;
 	frameCount--;
+
+	if (app->input->GetKey(SDL_SCANCODE_P) == KEY_DOWN) {
+		LOG("PASA A SCENE DIRECTAMENTE");
+		app->fade->FadeToBlack(this, (Module*)app->scene, 90);
+	}
 
 	if (app->input->GetKey(SDL_SCANCODE_RETURN) == KEY_DOWN) {
 		LOG("PASA A TITLE SCENE");

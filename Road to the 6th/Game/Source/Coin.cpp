@@ -8,6 +8,7 @@
 #include "Log.h"
 #include "Point.h"
 #include "Physics.h"
+#include "EntityManager.h"
 
 Coin::Coin() : Entity(EntityType::ITEM)
 {
@@ -18,6 +19,11 @@ Coin::~Coin() {}
 
 bool Coin::Awake() {
 
+	return true;
+}
+
+bool Coin::Start() {
+
 	position.x = parameters.attribute("x").as_int();
 	position.y = parameters.attribute("y").as_int();
 	texturePath = parameters.attribute("texturepath").as_string();
@@ -25,16 +31,11 @@ bool Coin::Awake() {
 	width = 32;
 	height = 32;
 
-	return true;
-}
-
-bool Coin::Start() {
-
 	//initilize textures
 	texture = app->tex->Load(texturePath);
 	
 	// L07 TODO 4: Add a physics to an item - initialize the physics body
-	pbody = app->physics->CreateCircle(position.x, position.y, width/3, bodyType::KINEMATIC, ColliderType::COIN);
+	pbody = app->physics->CreateCircleSensor(position.x, position.y, width/3, bodyType::KINEMATIC, ColliderType::COIN);
 
 	pbody->listener = this;
 
@@ -62,7 +63,14 @@ bool Coin::Update()
 	position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width / 2));
 	position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 2));
 
-	app->render->DrawTexture(texture, position.x, position.y);
+	if (isPicked == false)
+		app->render->DrawTexture(texture, position.x, position.y);
+
+	if (isPicked == true) 
+	{
+		app->entityManager->DestroyEntity(this);
+		app->physics->world->DestroyBody(pbody->body);
+	}
 
 	return true;
 }
@@ -87,8 +95,14 @@ void Coin::OnCollision(PhysBody* physA, PhysBody* physB) {
 	case ColliderType::PLAYER:
 		LOG("Collision PLAYER");
 		pbody->body->SetActive(false);
-		this->Disable();
+		isPicked = true;
 		break;
 	}
 
+}
+
+void Coin::ResetCoin() {
+	SDL_SetTextureAlphaMod(texture, 1);
+	pbody->body->SetActive(true);
+	isPicked = false;
 }
