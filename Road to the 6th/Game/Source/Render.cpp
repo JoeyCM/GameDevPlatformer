@@ -6,6 +6,7 @@
 
 #include "Defs.h"
 #include "Log.h"
+#include "Optick/include/optick.h"
 
 #define VSYNC true
 
@@ -28,13 +29,15 @@ bool Render::Awake(pugi::xml_node& config)
 	LOG("Create SDL rendering context");
 	bool ret = true;
 
-	Uint32 flags = SDL_RENDERER_ACCELERATED;
+	Uint32 flags = SDL_RENDERER_PRESENTVSYNC;
 
-	if (limitFPS = config.child("vsync").attribute("value").as_bool(true) == true)
+	limitFPS = config.child("vsync").attribute("value").as_bool(true) == true;
+
+	/*if (limitFPS = config.child("vsync").attribute("value").as_bool(true) == true)
 	{
 		flags |= SDL_RENDERER_PRESENTVSYNC;
 		LOG("Using vsync");
-	}
+	}*/
 
 	renderer = SDL_CreateRenderer(app->win->window, -1, flags);
 
@@ -72,11 +75,13 @@ bool Render::PreUpdate()
 
 bool Render::Update(float dt)
 {
+	
 	return true;
 }
 
 bool Render::PostUpdate()
 {
+	OPTICK_CATEGORY("Render PostUpdate", Optick::Category::GameLogic);
 	SDL_SetRenderDrawColor(renderer, background.r, background.g, background.g, background.a);
 	SDL_RenderPresent(renderer);
 	return true;

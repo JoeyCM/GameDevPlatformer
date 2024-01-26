@@ -34,8 +34,8 @@ bool Player::Start() {
 
 	texturePath = parameters.attribute("texturepath").as_string();
 
-	width = 16;
-	height = 16;
+	width = 32;
+	height = 32;
 
 	idlePlayer.PushBack({ 0, 0, 13, 19 });
 	idlePlayer.PushBack({ 13, 1, 13, 19 });
@@ -62,20 +62,13 @@ bool Player::Start() {
 	attackPlayer.loop = false;
 	attackPlayer.speed = 0.3f;
 
-	diePlayer.PushBack({ 0, 40, 13, 19 });
-	diePlayer.loop = false;
-	diePlayer.speed = 0.1f;
-
-	hitPlayer.PushBack({ 450, 64, 65, 33 });
-	hitPlayer.loop = false;
-	hitPlayer.speed = 0.1f;
-
 	//initilize textures
 	texture = app->tex->Load(texturePath);
 
 	jumpSFXPath = app->configNode.child("player").child("SFXset").attribute("jumpSFXPath").as_string();
 	dieSFXPath = app->configNode.child("player").child("SFXset").attribute("dieSFXPath").as_string();
 	hurtSFXPath = app->configNode.child("player").child("SFXset").attribute("hurtSFXPath").as_string();
+	pickLifeSFXPath = app->configNode.child("player").child("SFXset").attribute("pickLifeSFXPath").as_string();
 	pickCoinSFXPath = app->configNode.child("player").child("SFXset").attribute("pickCoinSFXPath").as_string();
 	levelCompletedSFXPath = app->configNode.child("player").child("SFXset").attribute("levelCompletedSFXPath").as_string();
 	selectSFXPath = app->configNode.child("player").child("SFXset").attribute("selectSFXPath").as_string();
@@ -86,6 +79,7 @@ bool Player::Start() {
 	dieSFX = app->audio->LoadFx(dieSFXPath);
 	hurtSFX = app->audio->LoadFx(hurtSFXPath);
 	pickCoinSFX = app->audio->LoadFx(pickCoinSFXPath);
+	pickLifeSFX = app->audio->LoadFx(pickLifeSFXPath);
 	levelCompletedSFX = app->audio->LoadFx(levelCompletedSFXPath);
 	selectSFX = app->audio->LoadFx(selectSFXPath);
 	shortRangeAttackSFX = app->audio->LoadFx(shortRangeAttackSFXPath);
@@ -95,13 +89,15 @@ bool Player::Start() {
 	lives = 3;
 
 	//Add physics to the player - initialize physics body
-	pbody = app->physics->CreateCircle(position.x - 2, position.y, width / 1.5, bodyType::DYNAMIC, ColliderType::PLAYER);
+	pbody = app->physics->CreateCircle(position.x, position.y, width / 4, bodyType::DYNAMIC, ColliderType::PLAYER);
 
 	pbody->listener = this;
 
 	onGround = true;
 	jumping = false;
 	jumpCount = 2;
+
+	gameTimer = 120;
 
 	return true;
 }
@@ -113,174 +109,169 @@ bool Player::PreUpdate() {
 
 bool Player::Update()
 {
-	/*float speedMultiplier = app->GetAverageFPS() / 60; //Calculates the multiplier for changing speed by framerate
-
-	LOG("PLAYER SPEED = %f", currentAnim->speed);
-
-	if (app->scene->capTo30fps == true) {
-
-		currentAnim->speed = currentAnim->speed *2;
-	}*/
 
 	currentAnim = &idlePlayer;
 
-	//Enable/Disable Debug
-	if (app->input->GetKey(SDL_SCANCODE_F9) == KEY_DOWN)
+	if (app->scene->gamePaused != true) 
 	{
-		app->physics->debug = !app->physics->debug;
-		app->audio->PlayFx(selectSFX);
-	}
 
-	if (godMode == true) {
-
-		velocity = { 0, 0 };
-		pbody->body->SetGravityScale(0);
-
-		// Fly around the map
-		if (app->input->GetKey(SDL_SCANCODE_W) == KEY_REPEAT) {
-			velocity.y = -5;
-		}
-		if (app->input->GetKey(SDL_SCANCODE_S) == KEY_REPEAT) {
-			velocity.y = 5;
-		}
-		if (app->input->GetKey(SDL_SCANCODE_A) == KEY_REPEAT) {
-			isFliped = true;
-			velocity.x = -5;
-			if (isFliped == true && fliped == SDL_FLIP_NONE) {
-				fliped = SDL_FLIP_HORIZONTAL;
-			}
-		}
-		if (app->input->GetKey(SDL_SCANCODE_D) == KEY_REPEAT) {
-			isFliped = false;
-			velocity.x = 5;
-			if (isFliped == false && fliped == SDL_FLIP_HORIZONTAL) {
-				fliped = SDL_FLIP_NONE;
-			}
-		}
-
-
-	}
-	else if(godMode == false && dead == false)
-	{
-		velocity = { 0, -GRAVITY_Y };
-
-		//L02: DONE 4: modify the position of the player using arrow keys and render the texture
-		if (app->input->GetKey(SDL_SCANCODE_SPACE) == KEY_DOWN) {
-
-			longPress = false;
-
-			if (onGround == true) {
-				jumping = true;
-				jumpingTime = 0;
-
-				app->audio->PlayFx(jumpSFX);
-			}
-			else if (onGround == false && jumpCount > 1 && jumping == true) {
-				jumpingTime = 0;
-				Jump();
-				jumpCount--;
-
-				app->audio->PlayFx(jumpSFX);
-			}
-
-			onGround = false;
-		}
-		if (app->input->GetKey(SDL_SCANCODE_SPACE) == KEY_REPEAT) {
-
-			longPress = true;
-
-			if (onGround == true) {
-				jumping = true;
-				jumpingTime = 0;
-
-				app->audio->PlayFx(jumpSFX);
-			}
-
-			onGround = false;
-		}
-
-		if (app->input->GetKey(SDL_SCANCODE_A) == KEY_REPEAT) {
-
-			isFliped = true;
-
-			velocity.x = -5;
-
-			if (isFliped == true && fliped == SDL_FLIP_NONE) {
-				fliped = SDL_FLIP_HORIZONTAL;
-			}
-			currentAnim = &runPlayer;
-
-		}
-		if (app->input->GetKey(SDL_SCANCODE_D) == KEY_REPEAT) {
-			isFliped = false;
-	
-
-			velocity.x = 5;
-
-			if (isFliped == false && fliped == SDL_FLIP_HORIZONTAL) {
-				fliped = SDL_FLIP_NONE;
-			}
-			currentAnim = &runPlayer;
-
-		}
-
-		//Reset player position input
-		if (app->input->GetKey(SDL_SCANCODE_H) == KEY_DOWN
-			|| app->input->GetKey(SDL_SCANCODE_F3) == KEY_DOWN)
+		//Enable/Disable Debug
+		if (app->input->GetKey(SDL_SCANCODE_F9) == KEY_DOWN)
 		{
-			ResetPlayerPos();
+			app->physics->debug = !app->physics->debug;
 			app->audio->PlayFx(selectSFX);
 		}
 
-		// Being hit anim if slime or bat attacks the player
-		if (onCollision) {
-			currentAnim = &hitPlayer;
+		if (godMode == true) {
 
-			if (hitPlayer.HasFinished()) {
-				onCollision = false;
-				hitPlayer.Reset();
+			velocity = { 0, 0 };
+			pbody->body->SetGravityScale(0);
+
+			// Fly around the map
+			if (app->input->GetKey(SDL_SCANCODE_W) == KEY_REPEAT) {
+				velocity.y = -5;
 			}
-		}
+			if (app->input->GetKey(SDL_SCANCODE_S) == KEY_REPEAT) {
+				velocity.y = 5;
+			}
+			if (app->input->GetKey(SDL_SCANCODE_A) == KEY_REPEAT) {
+				isFliped = true;
+				velocity.x = -5;
+				if (isFliped == true && fliped == SDL_FLIP_NONE) {
+					fliped = SDL_FLIP_HORIZONTAL;
+				}
+			}
+			if (app->input->GetKey(SDL_SCANCODE_D) == KEY_REPEAT) {
+				isFliped = false;
+				velocity.x = 5;
+				if (isFliped == false && fliped == SDL_FLIP_HORIZONTAL) {
+					fliped = SDL_FLIP_NONE;
+				}
+			}
+			pbody->body->SetLinearVelocity(velocity);
 
-		//Attacking animation function
-		if (app->input->GetKey(SDL_SCANCODE_K) == KEY_DOWN)
+		}
+		else if (godMode == false && dead == false)
 		{
-			if (timeToAttack >= cooldownTime) 
-			{
-				attacking = true;
-				app->audio->PlayFx(shortRangeAttackSFX);
+			//velocity = { 0, -GRAVITY_Y };
+			velocity.y = -GRAVITY_Y;
+
+			pbody->body->SetGravityScale(1);
+
+			//L02: DONE 4: modify the position of the player using arrow keys and render the texture
+			if (app->input->GetKey(SDL_SCANCODE_SPACE) == KEY_DOWN) {
+				if (jumping == false) {
+					jumping = true;
+				}
+
+				if (jumpingTime <= 70 && jumpCount > 0) {
+					Jump();
+					jumpCount--;
+					LOG("Jump Count = %d", jumpCount);
+				}
+
 			}
 
+			if (app->input->GetKey(SDL_SCANCODE_A) == KEY_REPEAT) {
+
+				isFliped = true;
+
+
+				velocity.x = -5;
+
+				if (isFliped == true && fliped == SDL_FLIP_NONE) {
+					fliped = SDL_FLIP_HORIZONTAL;
+				}
+				currentAnim = &runPlayer;
+
+			}
+			if (app->input->GetKey(SDL_SCANCODE_D) == KEY_REPEAT) {
+				isFliped = false;
+
+				velocity.x = 5;
+
+				if (isFliped == false && fliped == SDL_FLIP_HORIZONTAL) {
+					fliped = SDL_FLIP_NONE;
+				}
+				currentAnim = &runPlayer;
+
+			}
+			if (app->input->GetKey(SDL_SCANCODE_D) == KEY_IDLE && app->input->GetKey(SDL_SCANCODE_A) == KEY_IDLE) {
+				velocity.x = 0;
+			}
+
+			//Reset player position input
+			if (app->input->GetKey(SDL_SCANCODE_H) == KEY_DOWN
+				|| app->input->GetKey(SDL_SCANCODE_F3) == KEY_DOWN)
+			{
+				ResetPlayerPos();
+				app->audio->PlayFx(selectSFX);
+			}
+
+			// Being hit anim if slime or bat attacks the player
+			if (onCollision) {
+				currentAnim = &hitPlayer;
+
+				if (hitPlayer.HasFinished()) {
+					onCollision = false;
+					hitPlayer.Reset();
+				}
+			}
+
+			//Attacking animation function
+			if (app->input->GetKey(SDL_SCANCODE_K) == KEY_DOWN)
+			{
+				if (timeToAttack >= cooldownTime)
+				{
+					attacking = true;
+					app->audio->PlayFx(shortRangeAttackSFX);
+				}
+
+			}
+			Attack();
+			timeToAttack++;
+
+			if (jumping == false) {
+				jumpingTime = 0;
+			}
+			else if (jumping == true) {
+				jumpingTime++;
+			}
+			pbody->body->SetLinearVelocityX(velocity.x);
+			gameTimer -= 1 * (app->GetDT()/1000);
 		}
-		Attack();
-		timeToAttack++;
 
-		//Jumping Function
-		if (jumping == true && jumpingTime <= 12) {
-			Jump();
+
+		// Link player's texture with pbody when moving, if player's dies then stop motion
+		if (dead == true) {
+			currentAnim = &diePlayer;
+			position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 20;
+			pbody->body->SetAwake(false);
+		}
+		else {
+			position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width));
+			position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 1.5));
 		}
 
-
-		longPress = false;
-	}
-
-	pbody->body->SetLinearVelocity(velocity);
-	
-	// Link player's texture with pbody when moving, if player's dies then stop motion
-	if (dead == true) {
-		currentAnim = &diePlayer;
-		position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 20;
-		pbody->body->SetAwake(false);
 	}
 	else {
-		position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width));
-		position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height/1.5));
+		//pbody->body->SetLinearVelocity({0, 0});
+		pbody->body->SetAwake(false);
 	}
-	
-	SDL_Rect rect = currentAnim->GetCurrentFrame();
-	app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
-	currentAnim->Update();
-	
+
+	if (app->scene->gamePaused != true) 
+	{
+		SDL_Rect rect = currentAnim->GetCurrentFrame();
+		app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
+		currentAnim->Update();
+	}
+
+	if (gameTimer <= 0) {
+		lives = 0;
+		dead = true;
+		app->audio->PlayFx(dieSFX);
+		app->fade->FadeToBlack((Module*)app->scene, (Module*)app->endingscreen, 60);
+	}
 
 	return true;
 }
@@ -305,6 +296,11 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 	{
 	case ColliderType::ITEM:
 		LOG("Collision ITEM");
+		if (app->scene->item->iType == "life" && lives < 3)
+		{
+			app->audio->PlayFx(pickLifeSFX);
+			lives += 0.5f;
+		}
 		break;
 	case ColliderType::COIN:
 		LOG("Collision COIN");
@@ -314,12 +310,11 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 		break;
 	case ColliderType::PLATFORM:
 		LOG("Collision PLATFORM");
-		jumpVel = GRAVITY_Y;
-		if (app->input->GetKey(SDL_SCANCODE_SPACE) != KEY_REPEAT) {
-			onGround = true;
+		if (jumping == true) {
+			jumpCount = 2;
 			jumping = false;
+			jumpingTime = 0;
 		}
-		jumpCount = 2;
 		break;
 	case ColliderType::WATER:
 		LOG("Collision WATER");
@@ -329,6 +324,16 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 			app->audio->PlayFx(dieSFX);
 			app->fade->FadeToBlack((Module*)app->scene, (Module*)app->endingscreen, 60);
 		}
+		break;
+	case ColliderType::CHECKPOINT:
+		LOG("Collision CHECKPOINT");
+		if (app->scene->checkpointEnabled == false) {
+			app->scene->checkpointEnabled = true;
+			app->SaveGameRequest();
+			app->audio->PlayFx(levelCompletedSFX);
+		}
+		
+		//app->fade->FadeToBlack((Module*)app->scene, (Module*)app->titlescreen, 90);
 		break;
 	case ColliderType::WIN_ZONE:
 		LOG("Collision WIN ZONE");
@@ -371,6 +376,7 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 		break;
 	case ColliderType::SLIME_HITBOX:
 		LOG("Collison SLIME HEAD HITBOX");
+		Jump();
 		app->scene->slime->lives--;
 		app->scene->slime->onCollision = true;
 		if (app->scene->slime->lives <= 0) {
@@ -380,6 +386,7 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 		break;
 	case ColliderType::BAT_HITBOX:
 		LOG("Collison BAT HEAD HITBOX");
+		Jump();
 		app->scene->bat->lives--;
 		app->scene->bat->onCollision = true;
 		if (app->scene->bat->lives <= 0) {
@@ -414,17 +421,12 @@ void Player::OnCollision(PhysBody* physA, PhysBody* physB) {
 }
 
 void Player::Jump() {
-	velocity.y = jumpVel;
+	
+	jumping = true;
 
-	//Mini Jump
-	if (longPress == true)
-		jumpVel = -15.0f;
-	else if(jumpCount == 0)
-		jumpVel = -20.0f;
-	else
-		jumpVel = -5.0f;
+	pbody->body->ApplyLinearImpulse({ 0, -1.8 }, pbody->body->GetWorldCenter(), true);
 
-	jumpingTime++;
+	
 }
 
 void Player::Attack() {
@@ -465,6 +467,7 @@ void Player::ResetPlayerPos() {
 	app->scene->cameraFix = false;
 	app->render->camera.x = 0;
 	dead = false;
+	gameTimer = 120;
 	
 	LOG("--RESETING PLAYER--");
 }

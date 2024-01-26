@@ -11,21 +11,26 @@
 	<:anonymous />
 	<pathfinding />
 	<scene>
-		<playerPosition x="7" y="16.6825008" />
-		<cameraIsFix value="false" />
+		<playerPosition x="61.8499298" y="10.4225178" />
+		<cameraIsFix value="true" />
 		<cameraIsFix2 value="false" />
 		<playerLives playerLives="3" />
-		<slimePosition x="11.0663166" y="16.7762547" />
+		<coins coins="2" />
+		<itemLives itemLives="true" />
+		<checkpointEnabled checkpointEnabled="true" />
+		<slimePosition x="80.5" y="4.77625084" />
 		<slimeLives slimeLives="2" />
-		<batPosition x="14.3583345" y="16.0249996" />
+		<batPosition x="54.2801666" y="9.75249863" />
 		<batLives batLives="2" />
+		<checkPoint checkPoint="true" />
 	</scene>
 	<Fonts_Module />
 	<UI_Module />
 	<entitymanager />
 	<map />
 	<EndingScreen />
+	<guiManager />
 	<renderer>
-		<camera x="0" y="0" />
+		<camera x="-1455" y="0" />
 	</renderer>
 </save_state>

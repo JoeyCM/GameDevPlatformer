@@ -107,7 +107,9 @@ bool SlimeEnemy::Start() {
 
 	pbody->listener = this;
 
-	hitbox = app->physics->CreateRectangle(METERS_TO_PIXELS(pbody->body->GetTransform().p.x), METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 15, 8, 2, bodyType::DYNAMIC, ColliderType::SLIME_HITBOX);
+	hitbox = app->physics->CreateRectangle(METERS_TO_PIXELS(pbody->body->GetTransform().p.x), METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 13, 13, 4, bodyType::DYNAMIC, ColliderType::SLIME_HITBOX);
+
+	hitbox->listener = this;
 
 	refreshPathTime = 0;
 
@@ -127,60 +129,68 @@ bool SlimeEnemy::Update()
 	currentAnim = &idleEnemy;
 	velocity.y = -GRAVITY_Y;
 
-	// Being hit anim if player attacks the slime
-	if (onCollision) {
-		currentAnim = &hitEnemy;
+	if (app->scene->gamePaused != true)
+	{
+		// Being hit anim if player attacks the slime
+		if (onCollision) {
+			currentAnim = &hitEnemy;
 
-		if (hitEnemy.HasFinished()) {
-			onCollision = false;
-			hitEnemy.Reset();
+			if (hitEnemy.HasFinished()) {
+				onCollision = false;
+				hitEnemy.Reset();
+			}
 		}
+
+		//Takes player pos for the path destination
+		iPoint playerTile = app->map->WorldToMap(app->scene->player->position.x + 32, app->scene->player->position.y);
+
+		//Calculates distance between slime and player for detection range
+		float distance = playerTile.x - origin.x;
+
+		//Test compute path function
+		if (originSelected == true && distance <= 10 && distance >= -10)
+		{
+			app->pathfinding->CreatePath(origin, playerTile);
+			refreshPathTime++;
+			originSelected = false;
+
+			MovementDirection(origin, playerTile);
+			Attack(origin, playerTile);
+		}
+		else
+		{
+			velocity = { 0, 0 };
+			origin.x = pbody->body->GetPosition().x;
+			origin.y = pbody->body->GetPosition().y;
+			originSelected = true;
+			app->pathfinding->ClearLastPath();
+			refreshPathTime = 0;
+		}
+
+		if (jump == false)
+			pbody->body->SetLinearVelocity(velocity);
+		else if (jump == true)
+			currentAnim = &jumpEnemy;
+
+		if (ableAttack == false) {
+			attackCooldown++;
+			if (attackCooldown >= 50)
+				ableAttack = true;
+		}
+
+
+		position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width / 4));
+		position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 3));
 	}
-
-	//Takes player pos for the path destination
-	iPoint playerTile = app->map->WorldToMap(app->scene->player->position.x + 32, app->scene->player->position.y);
-
-	//Calculates distance between slime and player for detection range
-	float distance = playerTile.x - origin.x;
-
-	//Test compute path function
-	if (originSelected == true && distance <= 10 && distance >= -10)
-	{
-		app->pathfinding->CreatePath(origin, playerTile);
-		refreshPathTime++;
-		originSelected = false;
-
-		MovementDirection(origin, playerTile);
-		Attack(origin, playerTile);
-	}
-	else
-	{
-		velocity = { 0, 0 };
-		origin.x = pbody->body->GetPosition().x;
-		origin.y = pbody->body->GetPosition().y;
-		originSelected = true;
-		app->pathfinding->ClearLastPath();
-		refreshPathTime = 0;
-	}
-	
-	if(jump == false)
-		pbody->body->SetLinearVelocity(velocity);
-	else if(jump == true)
-		currentAnim = &jumpEnemy;
-
-	if (ableAttack == false) {
-		attackCooldown++;
-		if (attackCooldown >= 50)
-			ableAttack = true;
-	}	
-
-	position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width / 4));
-	position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 3));
 
 	//hitbox->body->SetGravityScale(0);
 	hitboxPos.x = pbody->body->GetTransform().p.x;
 	hitboxPos.y = pbody->body->GetTransform().p.y - PIXEL_TO_METERS(10);
 	hitbox->body->SetTransform({ hitboxPos.x, hitboxPos.y }, 0);
+
+	if (app->scene->gamePaused == true)
+		pbody->body->SetLinearVelocity({ 0,0 });
+
 
 	if(dead == true)
 	{
@@ -194,25 +204,31 @@ bool SlimeEnemy::Update()
 		dead = false;
 	}
 
-	if (app->physics->debug)
+	if (app->scene->gamePaused != true)
 	{
-		// L12: Get the latest calculated path and draw
-		const DynArray<iPoint>* path = app->pathfinding->GetLastPath();
-		//LOG("Path Count: %d", path->Count());
-		for (uint i = 0; i < path->Count(); ++i)
+		if (app->physics->debug)
 		{
-			iPoint pos = app->map->MapToWorld(path->At(i)->x, path->At(i)->y);
-			app->render->DrawTexture(app->scene->slimeTilePathTex, pos.x, pos.y);
-		}
+			// L12: Get the latest calculated path and draw
+			const DynArray<iPoint>* path = app->pathfinding->GetLastPath();
+			//LOG("Path Count: %d", path->Count());
+			for (uint i = 0; i < path->Count(); ++i)
+			{
+				iPoint pos = app->map->MapToWorld(path->At(i)->x, path->At(i)->y);
+				app->render->DrawTexture(app->scene->slimeTilePathTex, pos.x, pos.y);
+			}
 
-		// L12: Debug pathfinding
-		iPoint originScreen = app->map->MapToWorld(origin.x, origin.y);
-		app->render->DrawTexture(app->scene->originTex, originScreen.x - 16, originScreen.y - 19);
+			// L12: Debug pathfinding
+			iPoint originScreen = app->map->MapToWorld(origin.x, origin.y);
+			app->render->DrawTexture(app->scene->originTex, originScreen.x - 16, originScreen.y - 19);
+		}
 	}
 
-	SDL_Rect rect = currentAnim->GetCurrentFrame();
-	app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
-	currentAnim->Update();
+	if (app->scene->gamePaused != true)
+	{
+		SDL_Rect rect = currentAnim->GetCurrentFrame();
+		app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
+		currentAnim->Update();
+	}
 
 	return true;
 }
@@ -237,12 +253,12 @@ void SlimeEnemy::MovementDirection(const iPoint& origin, const iPoint& destinati
 	if (app->pathfinding->IsWalkable(destination) != 0) {
 
 		//Check if player is to the right or the left of the origin
-		if (resX < 0) {
-			velocity.x = -2;
+		if (resX < 0 || app->scene->player->position.x + 32 < position.x) {
+			velocity.x = -3;
 			fliped = SDL_FLIP_NONE;
 		}
-		if (resX > 0) {
-			velocity.x = +2;
+		if (resX > 0 || app->scene->player->position.x > position.x) {
+			velocity.x = +3;
 			fliped = SDL_FLIP_HORIZONTAL;
 		}
 
@@ -292,37 +308,64 @@ void SlimeEnemy::Attack(const iPoint& origin, const iPoint& destination) {
 void SlimeEnemy::OnCollision(PhysBody* physA, PhysBody* physB) {
 
 	// L07 DONE 7: Detect the type of collision
-
-	switch (physB->cType)
-	{
-	case ColliderType::PLATFORM:
-		LOG("Collision PLATFORM");
-		if(jump == true)
-			jump = false;
-		break;
-	case ColliderType::WATER:
-		LOG("Collision WATER");
-		dead = true;
-		break;
-	case ColliderType::ENEMY:
-		LOG("Collision ENEMY");
-		break;
-	case ColliderType::PLAYER_ATTACK_HITBOX:
-		LOG("Collision PLAYER ATTACK HITBOX");
-		lives--;
-		if (lives <= 0) {
+	if (physA->cType == ColliderType::ENEMY) {
+		switch (physB->cType)
+		{
+		case ColliderType::PLATFORM:
+			LOG("Collision PLATFORM");
+			if (jump == true)
+				jump = false;
+			break;
+		case ColliderType::WATER:
+			LOG("Collision WATER");
 			dead = true;
+			break;
+		case ColliderType::ENEMY:
+			LOG("Collision ENEMY");
+			break;
+		case ColliderType::PLAYER_ATTACK_HITBOX:
+			LOG("Collision PLAYER ATTACK HITBOX");
+			lives--;
+			if (lives <= 0) {
+				dead = true;
+			}
+			onCollision = true;
+			app->audio->PlayFx(slimeHitSFX);
+			break;
+		case ColliderType::WALL:
+			LOG("Collision WALL");
+			break;
+		case ColliderType::UNKNOWN:
+			LOG("Collision UNKNOWN");
+			break;
 		}
-		onCollision = true;
-		app->audio->PlayFx(slimeHitSFX);
-		break;
-	case ColliderType::WALL:
-		LOG("Collision WALL");
-		break;
-	case ColliderType::UNKNOWN:
-		LOG("Collision UNKNOWN");
-		break;
 	}
+	
+	if (physA->cType == ColliderType::SLIME_HITBOX) {
+		switch (physB->cType)
+		{
+		case ColliderType::PLAYER_ATTACK_HITBOX:
+			LOG("Collision PLAYER ATTACK HITBOX");
+			lives--;
+			if (lives <= 0) {
+				dead = true;
+			}
+			onCollision = true;
+			app->audio->PlayFx(slimeHitSFX);
+			break;
+		case ColliderType::PLAYER:
+			LOG("Collision WALL");
+			lives--;
+			if (lives <= 0) {
+				dead = true;
+			}
+			onCollision = true;
+			app->audio->PlayFx(slimeHitSFX);
+			//dead = true;
+			break;
+		}
+	}
+	
 
 }
 

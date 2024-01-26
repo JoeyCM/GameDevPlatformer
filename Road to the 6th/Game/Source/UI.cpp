@@ -39,7 +39,9 @@ bool UI::Start()
 	/*Initialize*/
 	font1Path = app->configNode.child("ui").child("font1").attribute("texturepath").as_string();
 	font2Path = app->configNode.child("ui").child("font2").attribute("texturepath").as_string();
-	
+	font2_RedPath = app->configNode.child("ui").child("font2Red").attribute("texturepath").as_string();
+	livesTexPath = app->configNode.child("scene").child("life").attribute("texturepath").as_string();
+	coinsTexPath = app->configNode.child("scene").child("coin").attribute("texturepath").as_string();
 
 	//Loading font 1
 	char lookupTableFont1[] = { "! @,_./0123456789$;<&?abcdefghijklmnopqrstuvwxyz" };
@@ -47,6 +49,12 @@ bool UI::Start()
 
 	char lookupTableFont2[] = { "! %&'()*+,-./0123456789:;<=>abcdefghijklmnopqrstuvwxyz" };
 	font2_id = app->fonts->Load(font2Path, lookupTableFont2, 1);
+	
+	char lookupTableFont2Red[] = { "! %&'()*+,-./0123456789:;<=>abcdefghijklmnopqrstuvwxyz" };
+	font2Red_id = app->fonts->Load(font2_RedPath, lookupTableFont2Red, 1);
+
+	livesTex = app->tex->Load(livesTexPath);
+	coinsTex = app->tex->Load(coinsTexPath);
 
 	return true;
 }
@@ -83,16 +91,80 @@ bool UI::CleanUp()
 
 void UI::BlitLives()
 {
-	char playerLives[20];
-	sprintf_s(playerLives, 20, "lives: %d", app->scene->player->lives);
-	app->fonts->BlitText(20, 15, font2_id, playerLives);
+	/*char playerLives[20];
+	sprintf_s(playerLives, 20, "lives: %.1f", app->scene->player->lives);
+	app->fonts->BlitText(20, 15, font2_id, playerLives);*/
+	SDL_Rect fullLifeRect = { 0, 0, 32, 32 };
+	SDL_Rect halfLifeRect = { 32, 0, 32, 32 };
+
+	if (app->scene->player->lives == 3) {
+		app->render->DrawTexture(livesTex, 20, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20+32, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20+64, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->lives == 2.5f) {
+		app->render->DrawTexture(livesTex, 20, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20+32, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20 + 64, 5, &halfLifeRect, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->lives == 2) {
+		app->render->DrawTexture(livesTex, 20, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20+32, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->lives == 1.5f) {
+		app->render->DrawTexture(livesTex, 20, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(livesTex, 20+32, 5, &halfLifeRect, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->lives == 1) {
+		app->render->DrawTexture(livesTex, 20, 5, &fullLifeRect, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->lives == 0.5f) {
+		app->render->DrawTexture(livesTex, 20, 5, &halfLifeRect, SDL_FLIP_NONE, 0);
+	}
+
+}
+
+void UI::BlitTimer()
+{
+	if (app->scene->player->gameTimer < 50) 
+	{
+		char time[20];
+		sprintf_s(time, 20, "time: %.f", app->scene->player->gameTimer);
+		app->fonts->BlitText(425, 15, font2Red_id, time);
+	}
+	else 
+	{
+		char time[20];
+		sprintf_s(time, 20, "time: %.f", app->scene->player->gameTimer);
+		app->fonts->BlitText(425, 15, font2_id, time);
+	}
+	
 }
 
 void UI::BlitCoins()
 {
-	char playerCoins[20];
+	/*char playerCoins[20];
 	sprintf_s(playerCoins, 20, "coins: %d", app->scene->player->coins);
-	app->fonts->BlitText(20, 35, font2_id, playerCoins);
+	app->fonts->BlitText(20, 45, font2_id, playerCoins);*/
+
+	if (app->scene->player->coins == 4) {
+		app->render->DrawTexture(coinsTex, 20, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 32, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 64, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 96, 35, NULL, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->coins == 3) {
+		app->render->DrawTexture(coinsTex, 20, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 32, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 64, 35, NULL, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->coins == 2) {
+		app->render->DrawTexture(coinsTex, 20, 35, NULL, SDL_FLIP_NONE, 0);
+		app->render->DrawTexture(coinsTex, 20 + 32, 35, NULL, SDL_FLIP_NONE, 0);
+	}
+	else if (app->scene->player->coins == 1) {
+		app->render->DrawTexture(coinsTex, 20, 35, NULL, SDL_FLIP_NONE, 0);
+	}
 }
 
 
@@ -101,35 +173,35 @@ void UI::BlitPlayerXPos()
 {
 	char playerXPos[25];
 	sprintf_s(playerXPos, 25, "position x: %d", app->scene->player->position.x);
-	app->fonts->BlitText(20, 55, font2_id, playerXPos);
+	app->fonts->BlitText(20, 65, font2_id, playerXPos);
 }
 
 void UI::BlitPlayerYPos()
 {
 	char playerYPos[25];
 	sprintf_s(playerYPos, 25, "position y: %d", app->scene->player->position.y);
-	app->fonts->BlitText(20, 75, font2_id, playerYPos);
+	app->fonts->BlitText(20, 85, font2_id, playerYPos);
 }
 
 void UI::BlitSlimeLives()
 {
 	char slimeLives[25];
 	sprintf_s(slimeLives, 20, "slime lives: %d", app->scene->slime->lives);
-	app->fonts->BlitText(20, 95, font2_id, slimeLives);
+	app->fonts->BlitText(20, 105, font2_id, slimeLives);
 }
 
 void UI::BlitBatLives()
 {
 	char batLives[25];
 	sprintf_s(batLives, 20, "bat lives: %d", app->scene->bat->lives);
-	app->fonts->BlitText(20, 115, font2_id, batLives);
+	app->fonts->BlitText(20, 125, font2_id, batLives);
 }
 
 void UI::BlitFPS()
 {
 	char fps[25];
 	sprintf_s(fps, 25, "fps: %d", app->GetFPS());
-	app->fonts->BlitText(825, 15, font2_id, fps);
+	app->fonts->BlitText(870, 15, font2_id, fps);
 }
 
 void UI::BlitAverageFPS()

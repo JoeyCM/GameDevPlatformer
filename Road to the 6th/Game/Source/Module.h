@@ -8,6 +8,7 @@
 class App;
 // L07 TODO 2: Add Physics Module
 class PhysBody;
+class GuiControl;
 
 class Module
 {
@@ -73,6 +74,11 @@ public:
 
 	}
 	
+	virtual bool OnGuiMouseClickEvent(GuiControl* control)
+	{
+		return true;
+	}
+
 	void Enable() {
 		if (!active)
 		{

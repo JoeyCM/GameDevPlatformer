@@ -90,7 +90,7 @@ bool BatEnemy::Start() {
 
 	pbody->listener = this;
 
-	hitbox = app->physics->CreateRectangle(METERS_TO_PIXELS(pbody->body->GetTransform().p.x), METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 15, 8, 2, bodyType::DYNAMIC, ColliderType::BAT_HITBOX);
+	hitbox = app->physics->CreateRectangle(METERS_TO_PIXELS(pbody->body->GetTransform().p.x), METERS_TO_PIXELS(pbody->body->GetTransform().p.y) - 15, 13, 4, bodyType::DYNAMIC, ColliderType::BAT_HITBOX);
 
 	refreshPathTime = 0;
 
@@ -104,56 +104,63 @@ bool BatEnemy::PreUpdate() {
 
 bool BatEnemy::Update()
 {
+	
 	currentAnim = &flyingEnemy;
 	//velocity = { 0, 0 };
 	pbody->body->SetGravityScale(0);
 
-	// Being hit anim if player attacks the bat
-	if (onCollision) {
-		currentAnim = &hitEnemy;
+	if (app->scene->gamePaused != true)
+	{
+		// Being hit anim if player attacks the bat
+		if (onCollision) {
+			currentAnim = &hitEnemy;
 
-		if (hitEnemy.HasFinished()) {
-			onCollision = false;
-			hitEnemy.Reset();
+			if (hitEnemy.HasFinished()) {
+				onCollision = false;
+				hitEnemy.Reset();
+			}
 		}
+
+		//Takes player pos for the path destination
+		iPoint playerTile = app->map->WorldToMap(app->scene->player->position.x + 32, app->scene->player->position.y);
+
+
+		//Calculates distance between bat and player for detection range
+		float distance = playerTile.x - origin.x;
+
+		//Test compute path function
+		if (originSelected == true && distance <= 15 && distance >= -15)
+		{
+			app->pathfinding->CreatePath(origin, playerTile);
+			refreshPathTime++;
+			originSelected = false;
+			/*if (refreshPathTime >= 150)
+				originSelected = false;*/
+			MovementDirection(origin, playerTile);
+		}
+		else
+		{
+			velocity = { 0, 0 };
+			origin.x = pbody->body->GetPosition().x;
+			origin.y = pbody->body->GetPosition().y;
+			originSelected = true;
+			app->pathfinding->ClearLastPath();
+			refreshPathTime = 0;
+		}
+
+		pbody->body->SetLinearVelocity(velocity);
+
+		position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width / 4));
+		position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 3));
 	}
-	
-	//Takes player pos for the path destination
-	iPoint playerTile = app->map->WorldToMap(app->scene->player->position.x + 32, app->scene->player->position.y);
-
-	
-	//Calculates distance between bat and player for detection range
-	float distance = playerTile.x - origin.x;
-
-	//Test compute path function
-	if (originSelected == true && distance <= 10 && distance >= -10)
-	{
-		app->pathfinding->CreatePath(origin, playerTile);
-		refreshPathTime++;
-		originSelected = false;
-		/*if (refreshPathTime >= 150)
-			originSelected = false;*/
-		MovementDirection(origin, playerTile);
-	}
-	else
-	{
-		velocity = { 0, 0 };
-		origin.x = pbody->body->GetPosition().x;
-		origin.y = pbody->body->GetPosition().y;
-		originSelected = true;
-		app->pathfinding->ClearLastPath();
-		refreshPathTime = 0;
-	}
-
-	pbody->body->SetLinearVelocity(velocity);
-
-	position.x = METERS_TO_PIXELS(pbody->body->GetTransform().p.x - (width / 4));
-	position.y = METERS_TO_PIXELS(pbody->body->GetTransform().p.y - (height / 3));
 
 	//hitbox->body->SetGravityScale(0);
 	hitboxPos.x = pbody->body->GetTransform().p.x;
 	hitboxPos.y = pbody->body->GetTransform().p.y - PIXEL_TO_METERS(10);
 	hitbox->body->SetTransform({ hitboxPos.x, hitboxPos.y }, 0);
+
+	if(app->scene->gamePaused == true)
+		pbody->body->SetLinearVelocity({ 0,0 });
 
 	if (dead == true)
 	{
@@ -167,25 +174,31 @@ bool BatEnemy::Update()
 		dead = false;
 	}
 
-	if (app->physics->debug)
+	if (app->scene->gamePaused != true)
 	{
-		// L12: Get the latest calculated path and draw
-		const DynArray<iPoint>* path = app->pathfinding->GetLastPath();
-		//LOG("Path Count: %d", path->Count());
-		for (uint i = 0; i < path->Count(); ++i)
+		if (app->physics->debug)
 		{
-			iPoint pos = app->map->MapToWorld(path->At(i)->x, path->At(i)->y);
-			app->render->DrawTexture(app->scene->slimeTilePathTex, pos.x, pos.y);
-		}
+			// L12: Get the latest calculated path and draw
+			const DynArray<iPoint>* path = app->pathfinding->GetLastPath();
+			//LOG("Path Count: %d", path->Count());
+			for (uint i = 0; i < path->Count(); ++i)
+			{
+				iPoint pos = app->map->MapToWorld(path->At(i)->x, path->At(i)->y);
+				app->render->DrawTexture(app->scene->slimeTilePathTex, pos.x, pos.y);
+			}
 
-		// L12: Debug pathfinding
-		iPoint originScreen = app->map->MapToWorld(origin.x, origin.y);
-		app->render->DrawTexture(app->scene->originTex, originScreen.x - 16, originScreen.y - 19);
+			// L12: Debug pathfinding
+			iPoint originScreen = app->map->MapToWorld(origin.x, origin.y);
+			app->render->DrawTexture(app->scene->originTex, originScreen.x - 16, originScreen.y - 19);
+		}
 	}
 
-	SDL_Rect rect = currentAnim->GetCurrentFrame();
-	app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
-	currentAnim->Update();
+	if (app->scene->gamePaused != true)
+	{
+		SDL_Rect rect = currentAnim->GetCurrentFrame();
+		app->render->DrawTexture(texture, position.x, position.y, &rect, fliped);
+		currentAnim->Update();
+	}
 
 	return true;
 }
@@ -210,19 +223,19 @@ void BatEnemy::MovementDirection(const iPoint& origin, const iPoint& destination
 	iPoint playerTile = app->map->WorldToMap(app->scene->player->position.x, app->scene->player->position.y);
 	if (app->pathfinding->IsWalkable(playerTile) != 0) {
 		//Check if player is to the right or the left of the origin
-		if (resX < 0) {
-			velocity.x = -2;
+		if (resX < 0 || app->scene->player->position.x+32 < position.x) {
+			velocity.x = -5;
 			fliped = SDL_FLIP_HORIZONTAL;
 		}
-		if (resX > 0) {
-			velocity.x = +2;
+		if (resX > 0 || app->scene->player->position.x > position.x) {
+			velocity.x = +5;
 			fliped = SDL_FLIP_NONE;
 		}
-		if (resY < 0) {
-			velocity.y = -2;
+		if (resY < 0 || app->scene->player->position.y+32 < position.y) {
+			velocity.y = -5;
 		}
-		if (resY > 0) {
-			velocity.y = +2;
+		if (resY > 0 || app->scene->player->position.y > position.y) {
+			velocity.y = +5;
 		}
 	}
 	else {

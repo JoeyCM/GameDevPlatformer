@@ -56,9 +56,9 @@ Here an example, note that some assets require to be loaded all at once while ot
 Assets/Audio/Fx/long_jump.wav
 Assets/Audio/Music/main_theme.ogg
 Assets/Screens/Logo/logo.png
-Assets/Screens/Title/TitleScreen.png
+Assets/Screens/Title/title.png
 Assets/Screens/Gameplay/background.png
-Assets/Characters/BarcelonaPlayer.png
+Assets/Characters/player.png
 Assets/Characters/enemy_slime.png
 Assets/Common/font_arial.ttf
 Assets/GUI/gui.png

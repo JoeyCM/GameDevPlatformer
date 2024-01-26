@@ -7,6 +7,7 @@
 #include "Coin.h"
 #include "SlimeEnemy.h"
 #include "BatEnemy.h"
+#include "GuiButton.h"
 
 struct SDL_Texture;
 
@@ -37,7 +38,13 @@ public:
 	// Called before quitting
 	bool CleanUp();
 
+	// Define multiple Gui Event methods
+	bool OnGuiMouseClickEvent(GuiControl* control);
+
 	void ResetScene();
+
+	void SaveUI();
+	void Checkpoint();
 
 	bool LoadState(pugi::xml_node&);
 	bool SaveState(pugi::xml_node&);
@@ -63,24 +70,49 @@ public:
 
 	bool playing = false;
 
-	bool capTo60fps = false;
+	bool capTo30fps = false;
 
 	SDL_Texture* originTex = nullptr;
 	const char* origintexturePath;
 
 	SDL_Texture* slimeTilePathTex = nullptr;
 	const char* slimeTilePath;
+	
+	SDL_Texture* checkPointTex = nullptr;
+	const char* checkPointTexPath;
+	bool checkpointEnabled = false;
+
+	int saveTime = 0;
+	bool showSavingState = false;
+
+	bool gamePaused = false;
+
+	bool continueGame = false;
+
+	List<Coin*> coinsList;
+
+	List<Item*> livesCollectedList;
+	int itemLivesCount = 0;
 
 private:
-	SDL_Texture* img;
+	SDL_Texture* img_pause;
 	iPoint startPosition;
 	
 	// L12: Debug pathfing
 	iPoint origin;
 	bool originSelected = false;
 
+	const char* imgPausePath;
 	const char* musicPath;
 	const char* selectSFXPath;
+
+	// Declare a GUI Button and create it using the GuiManager
+	GuiButton* resumeButton14;
+	GuiButton* backToTitleButton15;
+	GuiButton* exitButton16;
+	GuiButton* closeButton17;
+
+	bool exitGame = false;
 };
 
 #endif // __SCENE_H__

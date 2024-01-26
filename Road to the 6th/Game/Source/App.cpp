@@ -16,9 +16,13 @@
 #include "UI.h"
 #include "Fonts.h"
 #include "ModuleController.h"
+#include "GuiManager.h"
+#include "GuiButton.h"
+#include "GuiControl.h"
 
 #include "Defs.h"
 #include "Log.h"
+#include "Optick/include/optick.h"
 
 #include <iostream>
 #include <sstream>
@@ -46,6 +50,7 @@ App::App(int argc, char* args[]) : argc(argc), args(args)
 	entityManager = new EntityManager();
 	map = new Map();
 	endingscreen = new EndingScreen();
+	guiManager = new GuiManager();
 
 	// Ordered for awake / Start / Update
 	// Reverse order of CleanUp
@@ -66,6 +71,7 @@ App::App(int argc, char* args[]) : argc(argc), args(args)
 	AddModule(entityManager, false);
 	AddModule(map, false);
 	AddModule(endingscreen, false);
+	AddModule(guiManager, true);
 
 	// Render last to swap buffer
 	AddModule(render, true);
@@ -168,9 +174,9 @@ bool App::Update()
 	bool ret = true;
 	PrepareUpdate();
 
-	if (app->scene->capTo60fps == false)
+	if (app->scene->capTo30fps == false)
 		maxFrameDuration = configNode.child("app").child("frcap").attribute("value").as_int();
-	else if (app->scene->capTo60fps == true)
+	else if (app->scene->capTo30fps == true)
 		maxFrameDuration = configNode.child("app").child("frcap").attribute("value2").as_int();
 
 	if (input->GetWindowEvent(WE_QUIT) == true)
@@ -218,6 +224,7 @@ void App::PrepareUpdate()
 // ---------------------------------------------
 void App::FinishUpdate()
 {
+	OPTICK_CATEGORY("FinishUpdate", Optick::Category::GameLogic);
 	// L03: DONE 1: This is a good place to call Load / Save methods
 	if (loadGameRequested == true) LoadFromFile();
 	if (saveGameRequested == true) SaveToFile();
@@ -247,7 +254,7 @@ void App::FinishUpdate()
 
 	PerfTimer delayTimer = PerfTimer();
 	delayTimer.Start();
-	if (maxFrameDuration > 0 && delay > 0) {
+	if (maxFrameDuration > 0 && delay > 0 && render->limitFPS == false) {
 		SDL_Delay(delay);
 		LOG("We waited for %f milliseconds and the real delay is % f", delay, delayTimer.ReadMs());
 		dt = maxFrameDuration;
@@ -258,15 +265,16 @@ void App::FinishUpdate()
 
 	// Shows the time measurements in the window title
 	static char title[256];
-	sprintf_s(title, 256, "Av.FPS: %.2f Last sec frames: %i Last dt: %.3f Time since startup: %.3f Frame Count: %I64u ",
-		averageFps, framesPerSecond, dt, secondsSinceStartup, frameCount);
-
+	sprintf_s(title, 256, "FPS: %i | Avg.FPS: %.2f | Last dt: %.3f | V-Sync: %s",
+		framesPerSecond, averageFps, dt, app->render->limitFPS ? "ON" : "OFF");
+	app->win->SetTitle(title);
 
 }
 
 // Call modules before each loop iteration
 bool App::PreUpdate()
 {
+	OPTICK_CATEGORY("PreUpdate", Optick::Category::GameLogic);
 	bool ret = true;
 	ListItem<Module*>* item;
 	item = modules.start;
@@ -289,6 +297,7 @@ bool App::PreUpdate()
 // Call modules on each loop iteration
 bool App::DoUpdate()
 {
+	OPTICK_CATEGORY("DoUpdate", Optick::Category::GameLogic);
 	bool ret = true;
 	ListItem<Module*>* item;
 	item = modules.start;
@@ -311,6 +320,7 @@ bool App::DoUpdate()
 // Call modules after each loop iteration
 bool App::PostUpdate()
 {
+	OPTICK_CATEGORY("PostUpdate", Optick::Category::GameLogic);
 	bool ret = true;
 	ListItem<Module*>* item;
 	Module* pModule = NULL;
